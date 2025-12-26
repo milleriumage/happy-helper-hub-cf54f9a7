@@ -165,19 +165,70 @@ const App: React.FC = () => {
     
     try {
       console.log('[MEDIA] Solicitando nova câmera/mic...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 640, height: 480 }, 
-        audio: true 
-      });
+      
+      // Verificar se estamos em um ambiente Capacitor/nativo
+      const isNative = !!(window as any).Capacitor?.isNativePlatform?.();
+      console.log('[MEDIA] Ambiente nativo:', isNative);
+      
+      // Tentar obter permissões primeiro em ambiente nativo
+      if (isNative) {
+        try {
+          // Solicitar permissões explicitamente no Android/iOS
+          const { Camera } = await import('@capacitor/camera');
+          const permissions = await Camera.requestPermissions({ permissions: ['camera'] });
+          console.log('[MEDIA] Permissões câmera:', permissions);
+          
+          if (permissions.camera !== 'granted') {
+            setError("Permissão de câmera negada. Habilite nas configurações do app.");
+            return null;
+          }
+        } catch (permErr) {
+          console.warn('[MEDIA] Erro ao solicitar permissões Capacitor:', permErr);
+        }
+      }
+      
+      // Configurações otimizadas para WebView nativo
+      const constraints: MediaStreamConstraints = {
+        video: { 
+          facingMode: 'user', 
+          width: { ideal: 640, max: 1280 }, 
+          height: { ideal: 480, max: 720 }
+        }, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        // Garantir que o vídeo toque mesmo em WebView
+        localVideoRef.current.setAttribute('playsinline', 'true');
+        localVideoRef.current.setAttribute('webkit-playsinline', 'true');
+        localVideoRef.current.muted = true;
+        await localVideoRef.current.play().catch(e => console.warn('[MEDIA] Autoplay bloqueado:', e));
+      }
+      
       inputAudioCtx.current = new AudioContext({ sampleRate: 16000 });
       outputAudioCtx.current = new AudioContext({ sampleRate: 24000 });
       console.log('[MEDIA] Stream criado com sucesso');
       return stream;
-    } catch (e) {
+    } catch (e: any) {
       console.error('[MEDIA] Erro ao obter mídia:', e);
-      setError("Câmera/Mic não disponíveis.");
+      
+      // Mensagens de erro mais específicas
+      if (e.name === 'NotAllowedError') {
+        setError("Permissão negada. Habilite câmera e microfone nas configurações.");
+      } else if (e.name === 'NotFoundError') {
+        setError("Câmera ou microfone não encontrado no dispositivo.");
+      } else if (e.name === 'NotReadableError') {
+        setError("Câmera em uso por outro aplicativo. Feche outros apps.");
+      } else {
+        setError("Câmera/Mic não disponíveis: " + (e.message || e.name));
+      }
       return null;
     }
   };
