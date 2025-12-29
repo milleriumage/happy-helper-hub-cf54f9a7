@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
-    const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || 'AIzaSyBI5jfAn0PuVJSVYYRM6lv-a_priqxokBM';
+    const geminiApiKey = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY || 'AIzaSyCgtm0cMpsyfoBThGi3Tag_jdw9rjFPRJo';
     return {
       server: {
         port: 8080,
