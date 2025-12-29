@@ -395,7 +395,21 @@ const App: React.FC = () => {
       const sessionPromise = ai.live.connect({
         model: MODEL_NAME,
         callbacks: {
-          onopen: () => {
+          onopen: async () => {
+            console.log('[AI] Conexão aberta com sucesso');
+            
+            // CRÍTICO: Resumir AudioContext (obrigatório para mobile e após interação do usuário)
+            if (outputAudioCtx.current?.state === 'suspended') {
+              console.log('[AUDIO] Resumindo outputAudioCtx...');
+              await outputAudioCtx.current.resume();
+              console.log('[AUDIO] outputAudioCtx resumido:', outputAudioCtx.current.state);
+            }
+            if (inputAudioCtx.current?.state === 'suspended') {
+              console.log('[AUDIO] Resumindo inputAudioCtx...');
+              await inputAudioCtx.current.resume();
+              console.log('[AUDIO] inputAudioCtx resumido:', inputAudioCtx.current.state);
+            }
+            
             setIsAiActive(true);
             setAiLoading(false);
             setTimeLeft(model.durationSeconds);
@@ -410,27 +424,46 @@ const App: React.FC = () => {
             proc.connect(inputAudioCtx.current!.destination);
           },
           onmessage: async (msg: LiveServerMessage) => {
+            console.log('[AI] Mensagem recebida:', msg.serverContent ? 'serverContent presente' : 'sem serverContent');
+            
             if (msg.serverContent?.outputTranscription) {
+              console.log('[AI] Transcrição:', msg.serverContent.outputTranscription.text);
               setTranscription(msg.serverContent.outputTranscription.text);
             }
             if (msg.serverContent?.turnComplete) {
+              console.log('[AI] Turno completo');
               isAiSpeaking.current = false;
             }
             const audio = msg.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
             if (audio && outputAudioCtx.current) {
+              console.log('[AUDIO] Dados de áudio recebidos, tamanho:', audio.length);
               isAiSpeaking.current = true;
+              
+              // Garantir que o AudioContext está rodando
+              if (outputAudioCtx.current.state === 'suspended') {
+                console.log('[AUDIO] Resumindo AudioContext antes de reproduzir...');
+                await outputAudioCtx.current.resume();
+              }
+              
               try {
                 const buf = await decodeAudioData(decode(audio), outputAudioCtx.current, 24000, 1);
+                console.log('[AUDIO] Buffer decodificado, duração:', buf.duration);
                 const src = outputAudioCtx.current.createBufferSource();
                 src.buffer = buf;
                 src.connect(outputAudioCtx.current.destination);
                 nextStartTime.current = Math.max(nextStartTime.current, outputAudioCtx.current.currentTime);
                 src.start(nextStartTime.current);
                 nextStartTime.current += buf.duration;
+                console.log('[AUDIO] Áudio agendado para reprodução');
               } catch (e) {
                 console.error('[AUDIO] Erro ao reproduzir:', e);
               }
             }
+          },
+          onerror: (error: any) => {
+            console.error('[AI] Erro na sessão:', error);
+            setError('Erro na conexão com IA: ' + (error?.message || 'Verifique sua API key'));
+            setAiLoading(false);
           }
         },
         config: {
