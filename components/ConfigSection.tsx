@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { supabase } from '../supabase';
 
 interface ConfigSectionProps {
   onStartSession: (config: { duration: number; theme: string; personality: string; voice: string; language: string }) => void;
+  userId?: string;
+  onCardGenerated?: () => void;
 }
 
 const personalities = [
@@ -20,12 +23,13 @@ const languages = [
   { id: 'pt-BR', label: 'PT', flag: 'BR' },
 ];
 
-export const ConfigSection: React.FC<ConfigSectionProps> = ({ onStartSession }) => {
+export const ConfigSection: React.FC<ConfigSectionProps> = ({ onStartSession, userId, onCardGenerated }) => {
   const [duration, setDuration] = useState(3);
   const [theme, setTheme] = useState('');
   const [selectedPersonality, setSelectedPersonality] = useState('sarcastico');
   const [selectedVoice, setSelectedVoice] = useState('Kore');
   const [selectedLanguage, setSelectedLanguage] = useState('pt-BR');
+  const [generatingCard, setGeneratingCard] = useState(false);
 
   const handleStart = () => {
     if (!theme.trim()) {
@@ -39,6 +43,80 @@ export const ConfigSection: React.FC<ConfigSectionProps> = ({ onStartSession }) 
       voice: selectedVoice,
       language: selectedLanguage,
     });
+  };
+
+  const handleGenerateCard = async () => {
+    if (!theme.trim()) {
+      alert('Por favor, insira o motivo do barraco!');
+      return;
+    }
+    if (!userId) {
+      alert('Você precisa estar logado para gerar um card!');
+      return;
+    }
+
+    setGeneratingCard(true);
+    
+    const personalityEmoji = selectedPersonality === 'sarcastico' ? '🙄' :
+                            selectedPersonality === 'furioso' ? '🤬' :
+                            selectedPersonality === 'engracado' ? '🤣' : '🥺';
+    
+    // Gradientes baseados na personalidade
+    const gradients = {
+      sarcastico: { from: '#059669', to: '#10b981' },
+      furioso: { from: '#dc2626', to: '#ef4444' },
+      engracado: { from: '#f97316', to: '#fb923c' },
+      dramatico: { from: '#6b21a8', to: '#9333ea' }
+    };
+    
+    const gradient = gradients[selectedPersonality as keyof typeof gradients] || gradients.sarcastico;
+
+    try {
+      const { data, error } = await supabase
+        .from('user_cards')
+        .insert({
+          user_id: userId,
+          theme: theme.trim(),
+          personality: selectedPersonality,
+          personality_emoji: personalityEmoji,
+          voice: selectedVoice,
+          duration_minutes: duration,
+          gradient_from: gradient.from,
+          gradient_to: gradient.to
+        })
+        .select('share_id')
+        .single();
+
+      if (error) throw error;
+
+      // Copiar link para clipboard
+      const shareUrl = `${window.location.origin}/card/${data.share_id}`;
+      
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'DR.ia - Minha Treta',
+            text: `Venha experimentar: "${theme}"`,
+            url: shareUrl
+          });
+        } catch (e) {
+          await navigator.clipboard.writeText(shareUrl);
+          alert('Card criado! Link copiado para a área de transferência!');
+        }
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Card criado! Link copiado para a área de transferência!');
+      }
+
+      // Limpar o tema após gerar
+      setTheme('');
+      onCardGenerated?.();
+    } catch (e: any) {
+      console.error('Erro ao gerar card:', e);
+      alert('Erro ao gerar card. Tente novamente.');
+    } finally {
+      setGeneratingCard(false);
+    }
   };
 
   return (
@@ -162,6 +240,33 @@ export const ConfigSection: React.FC<ConfigSectionProps> = ({ onStartSession }) 
       >
         Entrar no Ringue
       </button>
+
+      {/* Generate Card Button */}
+      <button
+        onClick={handleGenerateCard}
+        disabled={generatingCard || !theme.trim()}
+        className={`w-full py-3 mt-3 rounded-xl font-bold text-sm uppercase tracking-wide shadow-md hover:shadow-lg hover:scale-[1.01] transition-all flex items-center justify-center gap-2 ${
+          generatingCard || !theme.trim()
+            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            : 'bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-500 text-white'
+        }`}
+      >
+        {generatingCard ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Gerando...
+          </>
+        ) : (
+          <>
+            <span>🎴</span>
+            Gerar Card
+          </>
+        )}
+      </button>
+      
+      <p className="text-center text-rose-400 text-[10px] mt-2">
+        Gere um card para compartilhar com amigos!
+      </p>
     </div>
   );
 };

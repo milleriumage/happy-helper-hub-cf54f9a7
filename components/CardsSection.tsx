@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AICard, AIModel } from './AICard';
+import { supabase } from '../supabase';
 
 const maleAvatar = '/src/assets/male-avatar.png';
 const femaleAvatar = '/src/assets/ai-avatar.png';
@@ -207,19 +208,148 @@ export const MALE_MODELS: AIModel[] = [
 // Export para compatibilidade
 export const AI_MODELS: AIModel[] = [...FEMALE_MODELS, ...MALE_MODELS];
 
+interface UserCard {
+  id: string;
+  share_id: string;
+  theme: string;
+  personality: string;
+  personality_emoji: string;
+  voice: string;
+  duration_minutes: number;
+  gradient_from: string;
+  gradient_to: string;
+}
+
 interface CardsSectionProps {
   onPlayCard: (model: AIModel) => void;
   userCredits: number;
   isLoading?: boolean;
+  userId?: string;
 }
 
 export const CardsSection: React.FC<CardsSectionProps> = ({ 
   onPlayCard, 
   userCredits, 
-  isLoading 
+  isLoading,
+  userId
 }) => {
+  const [userCards, setUserCards] = useState<UserCard[]>([]);
+  const [loadingCards, setLoadingCards] = useState(false);
+
+  useEffect(() => {
+    if (userId) {
+      fetchUserCards();
+    }
+  }, [userId]);
+
+  const fetchUserCards = async () => {
+    if (!userId) return;
+    setLoadingCards(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_cards')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setUserCards(data || []);
+    } catch (e) {
+      console.error('Erro ao buscar cards:', e);
+    } finally {
+      setLoadingCards(false);
+    }
+  };
+
+  const handleShareCard = async (model: AIModel) => {
+    // For predefined models, create a shareable link
+    const shareUrl = `${window.location.origin}/card/${model.id}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `DR.ia - ${model.name}`,
+          text: `Entre no ringue com ${model.name}! ${model.catchPhrase}`,
+          url: shareUrl
+        });
+      } catch (e) {
+        console.log('Compartilhamento cancelado');
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Link copiado para a área de transferência!');
+    }
+  };
+
+  const handleShareUserCard = async (card: UserCard) => {
+    const shareUrl = `${window.location.origin}/card/${card.share_id}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'DR.ia - Treta Personalizada',
+          text: `Venha experimentar: "${card.theme}"`,
+          url: shareUrl
+        });
+      } catch (e) {
+        console.log('Compartilhamento cancelado');
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Link copiado para a área de transferência!');
+    }
+  };
+
+  const userCardToModel = (card: UserCard): AIModel => ({
+    id: card.id,
+    name: 'Treta Custom',
+    avatar: card.voice === 'Kore' ? femaleAvatar : maleAvatar,
+    personality: card.personality,
+    personalityEmoji: card.personality_emoji,
+    furyLevel: card.personality === 'furioso' ? 5 : card.personality === 'dramatico' ? 4 : 3,
+    catchPhrase: card.theme,
+    durationSeconds: card.duration_minutes * 60,
+    creditsCost: Math.ceil(card.duration_minutes * 2),
+    theme: card.theme,
+    tone: card.personality,
+    gradientFrom: card.gradient_from,
+    gradientTo: card.gradient_to,
+    voice: card.voice
+  });
+
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-6 pb-24 sm:pb-20 no-scrollbar">
+      {/* User Cards Section (se houver) */}
+      {userCards.length > 0 && (
+        <>
+          <div className="text-center mb-6 sm:mb-8">
+            <h2 
+              className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-orange-500 drop-shadow-md" 
+              style={{ fontFamily: 'cursive' }}
+            >
+              ⭐ Meus Cards
+            </h2>
+            <p className="text-orange-400 text-xs sm:text-sm mt-2">
+              Cards que você criou
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto mb-12">
+            {userCards.map((card) => (
+              <AICard
+                key={card.id}
+                model={userCardToModel(card)}
+                onPlay={onPlayCard}
+                onShare={() => handleShareUserCard(card)}
+                disabled={isLoading}
+                userCredits={userCredits}
+                showShareButton={true}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
       {/* Seção Feminina */}
       <div className="text-center mb-6 sm:mb-8">
         <h2 
@@ -245,8 +375,10 @@ export const CardsSection: React.FC<CardsSectionProps> = ({
             key={model.id}
             model={model}
             onPlay={onPlayCard}
+            onShare={handleShareCard}
             disabled={isLoading}
             userCredits={userCredits}
+            showShareButton={true}
           />
         ))}
       </div>
@@ -276,8 +408,10 @@ export const CardsSection: React.FC<CardsSectionProps> = ({
             key={model.id}
             model={model}
             onPlay={onPlayCard}
+            onShare={handleShareCard}
             disabled={isLoading}
             userCredits={userCredits}
+            showShareButton={true}
           />
         ))}
       </div>

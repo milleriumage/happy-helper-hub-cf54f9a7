@@ -187,6 +187,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cards: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          gradient_from: string
+          gradient_to: string
+          id: string
+          personality: string
+          personality_emoji: string
+          share_id: string
+          theme: string
+          user_id: string
+          voice: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          gradient_from?: string
+          gradient_to?: string
+          id?: string
+          personality: string
+          personality_emoji: string
+          share_id?: string
+          theme: string
+          user_id: string
+          voice?: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          gradient_from?: string
+          gradient_to?: string
+          id?: string
+          personality?: string
+          personality_emoji?: string
+          share_id?: string
+          theme?: string
+          user_id?: string
+          voice?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

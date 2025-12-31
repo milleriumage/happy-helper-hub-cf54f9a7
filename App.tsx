@@ -844,11 +844,17 @@ const App: React.FC = () => {
               onPlayCard={handlePlayCard}
               userCredits={credits}
               isLoading={aiLoading}
+              userId={user?.id}
             />
           )}
 
           {activeTab === 'create' && (
             <ConfigSection 
+              userId={user?.id}
+              onCardGenerated={() => {
+                // Atualizar a lista de cards quando um novo for gerado
+                setActiveTab('cards');
+              }}
               onStartSession={(config) => {
                 // Criar modelo personalizado com as configurações
                 const customModel: AIModel = {
