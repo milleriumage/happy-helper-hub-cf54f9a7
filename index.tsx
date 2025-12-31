@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import App from './App';
 import { SharePage } from './components/SharePage';
+import { ShareCardPage } from './components/ShareCardPage';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,6 +17,7 @@ root.render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/share/:shareId" element={<SharePage />} />
+        <Route path="/card/:shareId" element={<ShareCardPage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>

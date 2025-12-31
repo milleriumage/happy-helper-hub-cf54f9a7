@@ -20,11 +20,13 @@ export interface AIModel {
 interface AICardProps {
   model: AIModel;
   onPlay: (model: AIModel) => void;
+  onShare?: (model: AIModel) => void;
   disabled?: boolean;
   userCredits: number;
+  showShareButton?: boolean;
 }
 
-export const AICard: React.FC<AICardProps> = ({ model, onPlay, disabled, userCredits }) => {
+export const AICard: React.FC<AICardProps> = ({ model, onPlay, onShare, disabled, userCredits, showShareButton = false }) => {
   const canAfford = userCredits >= model.creditsCost;
 
   return (
@@ -125,8 +127,8 @@ export const AICard: React.FC<AICardProps> = ({ model, onPlay, disabled, userCre
         </div>
       </div>
 
-      {/* Play Button */}
-      <div className="flex justify-center mt-3 sm:mt-4 pb-3 sm:pb-4">
+      {/* Play and Share Buttons */}
+      <div className="flex justify-center items-center gap-2 mt-3 sm:mt-4 pb-3 sm:pb-4">
         <button
           onClick={() => onPlay(model)}
           disabled={disabled || !canAfford}
@@ -138,6 +140,22 @@ export const AICard: React.FC<AICardProps> = ({ model, onPlay, disabled, userCre
         >
           {canAfford ? 'PLAY' : 'SEM CRÉDITOS'}
         </button>
+        
+        {showShareButton && onShare && (
+          <button
+            onClick={() => onShare(model)}
+            className="p-2.5 sm:p-3 rounded-full bg-white/30 text-white hover:bg-white/50 transition-all active:scale-95 shadow-lg"
+            title="Compartilhar"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Insufficient Credits Warning */}
